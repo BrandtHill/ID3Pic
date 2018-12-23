@@ -1,4 +1,4 @@
 *.exe
 *.core
 
-test
+test/
