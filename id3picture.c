@@ -9,11 +9,11 @@ int main(int argc, char * argv[]) {
 
 	if (fileContains(file, "ID3")) {
 		printf("Found ID3 Tag. Position %d\n", ftell(file) - strlen("ID3"));
-	} else printf("Tag not found. Position %d\n", ftell(file));
+	} else printf("ID3 Tag not found.\n");
 	
-	if (fileContains(file, "PIC")) {
-		printf("Found PIC Tag. Position %d\n", ftell(file) - strlen("PIC"));
-	} else printf("Tag not found. Position %d\n", ftell(file));
+	if (fileContains(file, "APIC")) {
+		printf("Found APIC Tag. Position %d\n", ftell(file) - strlen("APIC"));
+	} else printf("APIC Tag not found.\n");
 		
 	fclose(file);
 	return 0;
@@ -47,11 +47,20 @@ char * constructPicFrame(char *picFilename) {
 	picSize = ftell(picFile);
 	rewind(picFile);
 	
-	picBuffer = malloc(picSize + 1);
-	fread(picBuffer, picSize, 1, picFile);
+	picBuffer = malloc(picSize);
+	fread(picBuffer, 1, picSize, picFile);
 	fclose(picFile);
 
-	picBuffer[picSize] = 0;
+	frameSize = picSize + 13;
+
+	frameHeader[4] = (frameSize >> 21) & 0x7F;
+	frameHeader[5] = (frameSize >> 14) & 0x7F;
+	frameHeader[6] = (frameSize >> 7) & 0x7F;
+	frameHeader[7] = frameSize & 0x7F;
+
+	frame = malloc(frameSize);
+
+	memcpy(frame, frameHeader, sizeof(frameHeader));
 
 	return frame;
 }
