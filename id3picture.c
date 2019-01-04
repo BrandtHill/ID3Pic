@@ -5,17 +5,24 @@
 int main(int argc, char * argv[]) {
 	FILE *file;
 	char c;
+	char * buffer;
 	file = fopen(argv[1], "rb");
 
 	if (fileContains(file, "ID3")) {
-		printf("Found ID3 Tag. Position %d\n", ftell(file) - strlen("ID3"));
+		printf("Found ID3 Tag. Position %lu\n", ftell(file) - strlen("ID3"));
 	} else printf("ID3 Tag not found.\n");
 	
 	if (fileContains(file, "APIC")) {
-		printf("Found APIC Tag. Position %d\n", ftell(file) - strlen("APIC"));
+		printf("Found APIC Tag. Position %lu\n", ftell(file) - strlen("APIC"));
 	} else printf("APIC Tag not found.\n");
 		
 	fclose(file);
+
+	file = fopen("test/PicFrameTest", "wb");
+	buffer = (char *)constructPicFrame("test/Catnip.png");
+	fwrite(buffer, 1, sizeof(buffer), file);
+	fclose(file);
+
 	return 0;
 }
 
@@ -36,7 +43,7 @@ int fileContains(FILE *file, const char* tag) {
 }
 
 char * constructPicFrame(char *picFilename) {
-	int jpg, png;
+	int jpg;
 	long picSize, frameSize;
 	char * picBuffer, * frame;
 	char frameHeader[10] = "APIC\0\0\0\0\0\0";
@@ -51,7 +58,7 @@ char * constructPicFrame(char *picFilename) {
 	fread(picBuffer, 1, picSize, picFile);
 	fclose(picFile);
 
-	frameSize = picSize + 13;
+	frameSize = picSize + 13 + jpg;
 
 	frameHeader[4] = (frameSize >> 21) & 0x7F;
 	frameHeader[5] = (frameSize >> 14) & 0x7F;
@@ -61,6 +68,7 @@ char * constructPicFrame(char *picFilename) {
 	frame = malloc(frameSize);
 
 	memcpy(frame, frameHeader, sizeof(frameHeader));
-
+	memcpy(frame + sizeof(frameHeader), "\0image/png\0\3\0", 13);
+	memcpy(frame + sizeof(frameHeader) + 13, picBuffer, picSize);
 	return frame;
 }
