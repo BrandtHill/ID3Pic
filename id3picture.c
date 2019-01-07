@@ -1,11 +1,10 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "id3picture.h"
 
 int main(int argc, char * argv[]) {
 	FILE *file;
-	char c;
-	char * buffer;
+	char i;
+	unsigned char * frame;
+	long size;
 	file = fopen(argv[1], "rb");
 
 	if (fileContains(file, "ID3")) {
@@ -19,8 +18,8 @@ int main(int argc, char * argv[]) {
 	fclose(file);
 
 	file = fopen("test/PicFrameTest", "wb");
-	buffer = (char *)constructPicFrame("test/Catnip.png");
-	fwrite(buffer, 1, sizeof(buffer), file);
+	frame = constructPicFrame("test/Catnip.png", &size);
+	fwrite(frame, 1, size, file);
 	fclose(file);
 
 	return 0;
@@ -42,13 +41,15 @@ int fileContains(FILE *file, const char* tag) {
 	return 0;
 }
 
-char * constructPicFrame(char *picFilename) {
-	int jpg;
+char * constructPicFrame(const char * picFilename, long * sizePtr) {
+	int jpg, i;
 	long picSize, frameSize;
-	char * picBuffer, * frame;
-	char frameHeader[10] = "APIC\0\0\0\0\0\0";
+	unsigned char * picBuffer;
+	unsigned char * frame;
+	unsigned char frameHeader[10] = "APIC\0\0\0\0\0\0";
 	FILE * picFile;
-	
+	jpg = 0;
+
 	picFile = fopen(picFilename, "rb");
 	fseek(picFile, 0, SEEK_END);
 	picSize = ftell(picFile);
@@ -70,5 +71,7 @@ char * constructPicFrame(char *picFilename) {
 	memcpy(frame, frameHeader, sizeof(frameHeader));
 	memcpy(frame + sizeof(frameHeader), "\0image/png\0\3\0", 13);
 	memcpy(frame + sizeof(frameHeader) + 13, picBuffer, picSize);
+
+	*sizePtr = frameSize + 10;
 	return frame;
 }
