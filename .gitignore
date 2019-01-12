@@ -1,5 +1,5 @@
 *.exe
 *.core
 id3pic
-
+.vscode
 test/
