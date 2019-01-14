@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 // For info on ID3 tags
 // http://id3lib.sourceforge.net/id3/id3v2.3.0.html

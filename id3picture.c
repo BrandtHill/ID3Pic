@@ -17,10 +17,12 @@ int main(int argc, char * argv[]) {
 		printf("Found ID3 Tag. Position %lu\n", ftell(file) - strlen("ID3"));
 		fseek(file, -strlen("ID3"), SEEK_CUR);
 		tagStart = ftell(file);
+		printf("Tag start: %lu\n", tagStart);
 		fread(prevHeader, 1, 10, file);
 		fseek(file, 0, SEEK_END);
-		fileTailLen = ftell(file) - tagStart;
-		fseek(file, tagStart, SEEK_SET);
+		fileTailLen = ftell(file) - (tagStart + 10);
+		printf("File position: %lu, and File Tail Length: %lu\n", ftell(file), fileTailLen);
+		fseek(file, tagStart + 10, SEEK_SET);
 		fileTail = malloc(fileTailLen);
 		fread(fileTail, 1, fileTailLen, file);
 		rewind(file);
@@ -28,12 +30,18 @@ int main(int argc, char * argv[]) {
 		fread(fileHead, 1, tagStart, file);
 		fclose(file);
 		frame = constructPicFrame(argv[2], &size);
+		printf("Pic frame size %lu\n", size);
 		header = updateID3TagHeader(prevHeader, size);
 		file = fopen("test/out.mp3", "wb+");
+		printf("File pos: %lu\n", ftell(file));
 		if (tagStart) fwrite(fileHead, 1, tagStart, file);
+		printf("File pos: %lu\n", ftell(file));
 		fwrite(header, 1, 10, file);
+		printf("File pos: %lu\n", ftell(file));
 		fwrite(frame, 1, size, file);
+		printf("File pos: %lu\n", ftell(file));
 		fwrite(fileTail, 1, fileTailLen, file);
+		printf("File pos: %lu\n", ftell(file));
 	} else printf("ID3 Tag not found.\n");
 	
 	fclose(file);
@@ -97,6 +105,7 @@ char * updateID3TagHeader(const char * prevHeader, long picFrameSize) {
 	header = malloc(10);
 	strcpy(header, prevHeader);
 	if (header[3] < 3) exit(1);
+	header[3] = 4;
 	prevSize = 	(header[6] << 21) +
 				(header[7] << 14) +
 				(header[8] << 7) +
