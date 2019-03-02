@@ -1,52 +1,71 @@
 #include "id3picture.h"
 
 int main(int argc, char * argv[]) {
-	FILE *file;
-	char i;
-	char * frame;
-	char * fileTail;
-	char * fileHead;
-	char outFileName[strlen(argv[1]) + 5];
-	char prevHeader[10], header[10];
-	long size;
-	long tagStart;
-	long fileTailLen;
-	file = fopen(argv[1], "rb");
+	FILE * file = fopen("test/NEWFILE.dat", "w");
+	char * frame, * fileTail, * fileHead, * prevHeader, * header;
+	long size, tagStart, fileTailLen;
 
+	prevHeader = readInFile(argv[1], &fileTailLen, &tagStart, fileTail, fileHead);
+	frame = constructPicFrame(argv[2], &size);
+	header = updateID3TagHeader(prevHeader, size);
+	writeOutFile(argv[1], fileTailLen, tagStart, size, fileTail, fileHead, frame, header);
+	return 0;
+}
+
+/**
+ * Pass audio file name and pass unassigned pointers for file tail length, ID3 tag start,
+ * file tail, and file head that will each be set. Function will return the previous header.
+ */
+char * readInFile(const char * filename, long * fileTailLen, long * tagStart, char * fileTail, char * fileHead) {
+	FILE * file = fopen(filename, "rb");
+	char * prevHeader = malloc(10);
+
+	if (file == NULL) {
+		printf("Audio file not opened successfully. Exiting.\n");
+		exit(1);
+	}
 	if (fileContains(file, "ID3")) {
-		printf("Found ID3 Tag. Position %lu\n", ftell(file));
-		tagStart = ftell(file);
+		printf("Found ID3 Tag. Position %lu\n", *tagStart = ftell(file));
 		fread(prevHeader, 1, 10, file);
 		fseek(file, 0, SEEK_END);
-		fileTailLen = ftell(file) - (tagStart + 10);
-		printf("File position: %lu, and File Tail Length: %lu\n", ftell(file), fileTailLen);
-		fseek(file, tagStart + 10, SEEK_SET);
-		fileTail = malloc(fileTailLen);
-		fread(fileTail, 1, fileTailLen, file);
+		fileTail = malloc(*fileTailLen = ftell(file) - (*tagStart + 10));
+		fseek(file, *tagStart + 10, SEEK_SET);
+		fread(fileTail, 1, *fileTailLen, file);
 		rewind(file);
-		fileHead = malloc(tagStart);
-		fread(fileHead, 1, tagStart, file);
+		fileHead = malloc(*tagStart);
+		fread(fileHead, 1, *tagStart, file);
 		fclose(file);
-		frame = constructPicFrame(argv[2], &size);
-		printf("Pic frame size %lu\n", size);
-		updateID3TagHeader(prevHeader, header, size);
-		strcpy(outFileName, argv[1]);
-		strcpy(strstr(outFileName, ".mp3"), "_out.mp3");
-		printf("Output file name : %s\n", outFileName);
-		file = fopen(outFileName, "wb+");
-		printf("File pos: %lu\n", ftell(file));
-		if (tagStart) fwrite(fileHead, 1, tagStart, file);
-		printf("File pos: %lu\n", ftell(file));
-		fwrite(header, 1, 10, file);
-		printf("File pos: %lu\n", ftell(file));
-		fwrite(frame, 1, size, file);
-		printf("File pos: %lu\n", ftell(file));
-		fwrite(fileTail, 1, fileTailLen, file);
-		printf("File pos: %lu\n", ftell(file));
-	} else printf("ID3 Tag not found.\n");
-	
+	} else {
+		fclose(file);
+		printf("No ID3 Tag found. Ensure your file has an existing ID3v2.3 or v2.4 tag.\n");
+		exit(0);
+	}
+
+	return prevHeader;
+}
+
+/**
+ * Pass audio file name, file tail length, tag start, frame size, 
+ * file tail, file head, frame, and updated header. The new file 
+ * will be written whose name is appended with '_out'
+ */
+void writeOutFile(const char * filename, long fileTailLen, long tagStart, long size, char * fileTail, char * fileHead, char * frame, char * header) {
+	FILE * file;// = fopen("test/NEWFILE.dat", "w");
+	char outFileName[strlen(filename) + 5];
+
+	strcpy(outFileName, filename);
+	strcpy(strstr(outFileName, ".mp3"), "_out.mp3");
+	printf("Output file name : %s\n", outFileName);
+	file = fopen(outFileName, "wb+");
+	if (file == NULL) {
+		printf("New audio file not created successfully. Exiting.\n");
+		exit(1);
+	}
+	if (tagStart) fwrite(fileHead, 1, tagStart, file);
+	fwrite(header, 1, 10, file);
+	fwrite(frame, 1, size, file);
+	fwrite(fileTail, 1, fileTailLen, file);
 	fclose(file);
-	return 0;
 }
 
 /**
@@ -55,9 +74,7 @@ int main(int argc, char * argv[]) {
  * tag begins, else return false.
  */ 
 int fileContains(FILE * file, const char * tag) {
-	int tagLen, i, data = 0;
-
-	tagLen = strlen(tag);
+	int i, data = 0, tagLen = strlen(tag);
 
 	while (!feof(file)) {
 		for (i = 0; i < tagLen; i++) {
@@ -81,12 +98,10 @@ int fileContains(FILE * file, const char * tag) {
 char * constructPicFrame(const char * picFilename, long * sizePtr) {
 	int i, jpg;
 	long picSize, frameSize;
-	unsigned char * picBuffer;
-	unsigned char * frame;
+	unsigned char * picBuffer, * frame;
 	unsigned char frameHeader[10] = "APIC\0\0\0\0\0\0";
-	FILE * picFile;
+	FILE * picFile = fopen(picFilename, "rb");;
 
-	picFile = fopen(picFilename, "rb");
 	fseek(picFile, 0, SEEK_END);
 	picSize = ftell(picFile);
 	rewind(picFile);
@@ -110,6 +125,7 @@ char * constructPicFrame(const char * picFilename, long * sizePtr) {
 	memcpy(frame + sizeof(frameHeader) + 13 + jpg, picBuffer, picSize);
 
 	*sizePtr = frameSize + 10;
+	printf("Pic frame size %lu\n", *sizePtr);
 	return frame;
 }
 
@@ -119,8 +135,9 @@ char * constructPicFrame(const char * picFilename, long * sizePtr) {
  * the version is less than ID3v2.3, and the version will be 
  * bumped to ID3v2.4 just because.
  */
-void updateID3TagHeader(const char * prevHeader, char * header, long picFrameSize) {
+char * updateID3TagHeader(const char * prevHeader, long picFrameSize) {
 	long prevSize, size;
+	char * header = malloc(10);
 	strncpy(header, prevHeader, 10);
 	if (header[3] < 3) exit(1);
 	header[3] = 4;
@@ -133,6 +150,7 @@ void updateID3TagHeader(const char * prevHeader, char * header, long picFrameSiz
 	header[7] = (size >> 14) & 0x7F;
 	header[8] = (size >> 7) & 0x7F;
 	header[9] = (size) & 0x7F;
+	return header;
 }
 
 /**
