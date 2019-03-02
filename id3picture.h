@@ -11,6 +11,6 @@ int fileContains(FILE * file, const char * tag);
 
 char * constructPicFrame(const char * picFilename, long * sizePtr);
 
-char * updateID3TagHeader(const char * prevHeader, long picFrameSize);
+void updateID3TagHeader(const char * prevHeader, char * header, long picFrameSize);
 
 int picIsJpg(const char * picFilename);

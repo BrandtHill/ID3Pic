@@ -5,19 +5,17 @@ int main(int argc, char * argv[]) {
 	char i;
 	char * frame;
 	char * fileTail;
-	char * header;
 	char * fileHead;
-	char prevHeader[10];
+	char outFileName[strlen(argv[1]) + 5];
+	char prevHeader[10], header[10];
 	long size;
 	long tagStart;
 	long fileTailLen;
 	file = fopen(argv[1], "rb");
 
 	if (fileContains(file, "ID3")) {
-		printf("Found ID3 Tag. Position %lu\n", ftell(file) - strlen("ID3"));
-		fseek(file, -strlen("ID3"), SEEK_CUR);
+		printf("Found ID3 Tag. Position %lu\n", ftell(file));
 		tagStart = ftell(file);
-		printf("Tag start: %lu\n", tagStart);
 		fread(prevHeader, 1, 10, file);
 		fseek(file, 0, SEEK_END);
 		fileTailLen = ftell(file) - (tagStart + 10);
@@ -31,8 +29,11 @@ int main(int argc, char * argv[]) {
 		fclose(file);
 		frame = constructPicFrame(argv[2], &size);
 		printf("Pic frame size %lu\n", size);
-		header = updateID3TagHeader(prevHeader, size);
-		file = fopen("test/out.mp3", "wb+");
+		updateID3TagHeader(prevHeader, header, size);
+		strcpy(outFileName, argv[1]);
+		strcpy(strstr(outFileName, ".mp3"), "_out.mp3");
+		printf("Output file name : %s\n", outFileName);
+		file = fopen(outFileName, "wb+");
 		printf("File pos: %lu\n", ftell(file));
 		if (tagStart) fwrite(fileHead, 1, tagStart, file);
 		printf("File pos: %lu\n", ftell(file));
@@ -48,6 +49,11 @@ int main(int argc, char * argv[]) {
 	return 0;
 }
 
+/**
+ * Pass an open file with a tag to search for. Returns true if file 
+ * contains tag, and the file will point at the position where the
+ * tag begins, else return false.
+ */ 
 int fileContains(FILE * file, const char * tag) {
 	int tagLen, i, data = 0;
 
@@ -55,15 +61,23 @@ int fileContains(FILE * file, const char * tag) {
 
 	while (!feof(file)) {
 		for (i = 0; i < tagLen; i++) {
-			if (fgetc(file) != tag[i]) {
-				if (i) fseek(file, -i, SEEK_CUR);
+			if (fgetc(file) != tag[i]) { // Not part of tag
+				fseek(file, -i, SEEK_CUR);
 				break;
-			} else if (i + 1 == tagLen) return 1;
+			} else if (i + 1 == tagLen) { // Found complete tag
+				fseek(file, -strlen(tag), SEEK_CUR);
+				return 1;
+			}
 		}
 	}
 	return 0;
 }
 
+/**
+ * Pass a filename of a jpeg or png, and a buffer will be allocated
+ * that contains the APIC ID3 frame, and sizePtr will be set to the size
+ * of the frame plus ten bytes for the frame header.
+ */
 char * constructPicFrame(const char * picFilename, long * sizePtr) {
 	int i, jpg;
 	long picSize, frameSize;
@@ -99,11 +113,15 @@ char * constructPicFrame(const char * picFilename, long * sizePtr) {
 	return frame;
 }
 
-char * updateID3TagHeader(const char * prevHeader, long picFrameSize) {
-	char * header;
+/**
+ * Pass the previous ID3 Tag header and size of new pic frame,
+ * and function returns the updated tag header. It will fail if
+ * the version is less than ID3v2.3, and the version will be 
+ * bumped to ID3v2.4 just because.
+ */
+void updateID3TagHeader(const char * prevHeader, char * header, long picFrameSize) {
 	long prevSize, size;
-	header = malloc(10);
-	strcpy(header, prevHeader);
+	strncpy(header, prevHeader, 10);
 	if (header[3] < 3) exit(1);
 	header[3] = 4;
 	prevSize = 	(header[6] << 21) +
@@ -115,9 +133,11 @@ char * updateID3TagHeader(const char * prevHeader, long picFrameSize) {
 	header[7] = (size >> 14) & 0x7F;
 	header[8] = (size >> 7) & 0x7F;
 	header[9] = (size) & 0x7F;
-	return header;
 }
 
+/**
+ * Returns true if filename that of a jpeg file, else returns false.
+ */
 int picIsJpg(const char * picFilename) {
 	int i;
 	char lower[strlen(picFilename)];
