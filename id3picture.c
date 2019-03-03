@@ -10,51 +10,44 @@ long prevFramesLen;
 int version; //ID3v2.x where x should be 3 or 4
 
 int main(int argc, char * argv[]) {
-	//FILE * file = fopen("test/DELETEME", "w"); //Cygwin is terrible, errors out more often without this (???)
 	char * picFrame, * fileTail, * prevFrames, * preTagBuf, * prevHeader, * header;
+	//FILE * file = fopen("test/DELETEME", "rb"); //Cygwin is terrible, errors out more often without this (???)
 	
-	header = readInFile(argv[1], &fileTail, &prevFrames, &preTagBuf);
+	version = getVersion(argv[1]);
 	picFrame = constructPicFrame(argv[2]);
+	header = readInFile(argv[1], &fileTail, &prevFrames, &preTagBuf);
 	writeOutFile(argv[1], preTagBuf, header, prevFrames, picFrame, fileTail);
 	return 0;
 }
 
 /**
- * Pass audio file name and pass unassigned pointers for file tail length, ID3 tag start,
- * file tail, and file head that will each be set. Function will return the new header.
+ * Pass audio file name and pass unassigned pointers pre-tag buffer, previous frames, and file tails,
+ * each of which will be set to their values. Function will return point the new header.
  */
 char * readInFile(const char * filename, char ** fileTail, char ** prevFrames, char ** preTagBuf) {
 	FILE * file = fopen(filename, "rb");
 	char * prevHeader = malloc(10);
 	char * newHeader;
 	long prevSize;
-	int i;
 
 	if (file == NULL) {
 		printf("Audio file not opened successfully. Exiting.\n");
 		exit(1);
 	}
-	if (fileContains(file, "ID3")) {
-		printf("Found ID3 Tag. Position %lu\n", tagStart = ftell(file));
-		rewind(file);
-		*preTagBuf = malloc(tagStart);
-		fread(*preTagBuf, 1, tagStart, file);
-		fread(prevHeader, 1, 10, file);
-		newHeader = updateID3TagHeader(prevHeader);
-		picFrameStart = skipFrames(file);
-		fseek(file, 0, SEEK_END);
-		*fileTail = malloc(fileTailLen = (ftell(file) - picFrameStart));
-		fseek(file, picFrameStart, SEEK_SET);
-		fread(*fileTail, 1, fileTailLen, file);
-		*prevFrames = malloc(prevFramesLen = (picFrameStart - (tagStart + 10)));
-		fseek(file, tagStart + 10, SEEK_SET);
-		fread(*prevFrames, 1, prevFramesLen, file);
-		fclose(file);
-	} else {
-		fclose(file);
-		printf("No ID3 Tag found. Ensure your file has an existing ID3v2.3 or v2.4 tag.\n");
-		exit(0);
-	}
+
+	*preTagBuf = malloc(tagStart);
+	fread(*preTagBuf, 1, tagStart, file);
+	fread(prevHeader, 1, 10, file);
+	newHeader = updateID3TagHeader(prevHeader);
+	picFrameStart = skipFrames(file);
+	fseek(file, 0, SEEK_END);
+	*fileTail = malloc(fileTailLen = (ftell(file) - picFrameStart));
+	fseek(file, picFrameStart, SEEK_SET);
+	fread(*fileTail, 1, fileTailLen, file);
+	*prevFrames = malloc(prevFramesLen = (picFrameStart - (tagStart + 10)));
+	fseek(file, tagStart + 10, SEEK_SET);
+	fread(*prevFrames, 1, prevFramesLen, file);
+	fclose(file);
 
 	return newHeader;
 }
@@ -91,11 +84,11 @@ void writeOutFile(const char * filename, char * preTagBuf, char * header, char *
  * tag begins, else return false.
  */ 
 int fileContains(FILE * file, const char * tag) {
-	int i, data = 0, tagLen = strlen(tag);
+	int i, data, tagLen = strlen(tag);
 
-	while (!feof(file)) {
+	while ((data) != EOF) {
 		for (i = 0; i < tagLen; i++) {
-			if (fgetc(file) != tag[i]) { // Not part of tag
+			if ((data = fgetc(file)) != tag[i]) { // Not part of tag
 				fseek(file, -i, SEEK_CUR);
 				break;
 			} else if (i + 1 == tagLen) { // Found complete tag
@@ -113,7 +106,7 @@ int fileContains(FILE * file, const char * tag) {
  * of the frame plus ten bytes for the frame header.
  */
 char * constructPicFrame(const char * picFilename) {
-	int i, jpg;
+	int jpg;
 	long picSize, frameSize;
 	unsigned char * picBuffer, * frame;
 	unsigned char frameHeader[10] = "APIC\0\0\0\0\0\0";
@@ -164,7 +157,6 @@ char * updateID3TagHeader(const char * prevHeader) {
 	char * header = malloc(10);
 	int i;
 	memcpy(header, prevHeader, 10);
-	version = header[3];
 	if (version < 3) exit(1);
 	prevSize = 	(header[6] << 21) +
 				(header[7] << 14) +
@@ -223,4 +215,28 @@ long skipFrames(FILE * file) {
 		}
 	}
 	return 0;
+}
+
+/**
+ * Checks that an ID3 tag exists and returns the version of the ID3 tag,
+ * else it will exit with 1 if file didn't open or exit with 0 if no tag exists.
+ */
+int getVersion(const char * filename) {
+	FILE * file = fopen(filename, "rb");
+	int v;
+	if (file == NULL) {
+		printf("Audio file not opened successfully. Exiting.\n");
+		exit(1);
+	}
+	if (fileContains(file, "ID3")) {
+		printf("Found ID3 Tag. Position %lu\n", tagStart = ftell(file));
+		v = fgetc(file);
+		fclose(file);
+		return v;
+	} else {
+		fclose(file);
+		printf("No ID3 Tag found. Ensure your file has an existing ID3v2.3 or v2.4 tag.\n");
+		exit(0);
+	}
+	return -1;
 }

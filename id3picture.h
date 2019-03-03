@@ -20,3 +20,5 @@ char * updateID3TagHeader(const char * prevHeader);
 int picIsJpg(const char * picFilename);
 
 long skipFrames(FILE * file);
+
+int getVersion(const char * filename);
