@@ -7,14 +7,16 @@
 // http://id3lib.sourceforge.net/id3/id3v2.3.0.html
 // http://id3lib.sourceforge.net/id3/id3v2.4.0-structure.txt
 
-char * readInFile(const char * filename, long * fileTailLen, long * tagStart, char * fileTail, char * fileHead);
+char * readInFile(const char * filename, char ** fileTail, char ** prevFrames, char ** preTagBuf);
 
-void writeOutFile(const char * filename, long fileTailLen, long tagStart, long size, char * fileTail, char * fileHead, char * frame, char * header);
+void writeOutFile(const char * filename, char * preTagBuf, char * header, char * prevFrames, char * picFrame, char * fileTail);
 
 int fileContains(FILE * file, const char * tag);
 
-char * constructPicFrame(const char * picFilename, long * sizePtr);
+char * constructPicFrame(const char * picFilename);
 
-char * updateID3TagHeader(const char * prevHeader, long picFrameSize);
+char * updateID3TagHeader(const char * prevHeader);
 
 int picIsJpg(const char * picFilename);
+
+long skipFrames(FILE * file);
