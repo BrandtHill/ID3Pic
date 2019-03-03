@@ -1,5 +1,6 @@
 #include "id3picture.h"
 
+// Global variables
 long tagStart;
 long picFrameStart;
 long prevSize;
@@ -9,7 +10,7 @@ long prevFramesLen;
 int version; //ID3v2.x where x should be 3 or 4
 
 int main(int argc, char * argv[]) {
-	FILE * file = fopen("test/DELETEME", "w"); //Cygwin is terrible, errors out more often without this (???)
+	//FILE * file = fopen("test/DELETEME", "w"); //Cygwin is terrible, errors out more often without this (???)
 	char * picFrame, * fileTail, * prevFrames, * preTagBuf, * prevHeader, * header;
 	
 	header = readInFile(argv[1], &fileTail, &prevFrames, &preTagBuf);
@@ -75,17 +76,11 @@ void writeOutFile(const char * filename, char * preTagBuf, char * header, char *
 		printf("New audio file not created successfully. Exiting.\n");
 		exit(1);
 	}
-	printf("File pos, start: %lu\n", ftell(file));
-	if (tagStart) fwrite(preTagBuf, 1, tagStart, file);
-	printf("File pos, preTagBuf: %lu\n", ftell(file));
+	fwrite(preTagBuf, 1, tagStart, file);
 	fwrite(header, 1, 10, file);
-	printf("File pos, Header: %lu\n", ftell(file));
 	fwrite(prevFrames, 1, prevFramesLen, file);
-	printf("File pos, PrevFrames: %lu\n", ftell(file));
 	fwrite(picFrame, 1, picFrameSize, file);
-	printf("File pos, PicFrame: %lu\n", ftell(file));
 	fwrite(fileTail, 1, fileTailLen, file);
-	printf("File pos, FileTail: %lu\n", ftell(file));
 	fclose(file);
 	printf("Successfully wrote output file with picture.\n");
 }
@@ -207,7 +202,6 @@ long skipFrames(FILE * file) {
 	long size;
 
 	while (1) {
-		printf("Position in ID3 Tag Frames: %lu\n", ftell(file));
 		fread(header, 1, 10, file);
 		if ((header[0] | header[1] | header[2] | header[3]) && ((ftell(file) - 10 - tagStart) < prevSize)) {
 			if (version == 4) {
